@@ -1,4 +1,4 @@
-/* Copyright (C) 2024 Open Information Security Foundation
+/* Copyright (C) 2023 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -21,10 +21,10 @@
  * \author Sascha Steinbiss <sascha@steinbiss.name>
  */
 
-#ifndef SURICATA_UTIL_JA4_H
-#define SURICATA_UTIL_JA4_H
+#ifndef __DETECT_JA4S_HASH_H__
+#define __DETECT_JA4S_HASH_H__
 
-#define JA4_HEX_LEN 36
-#define JA4S_HEX_LEN 25
+/* Prototypes */
+void DetectJa4SHashRegister(void);
 
-#endif /* SURICATA_UTIL_JA4_H */
+#endif /* __DETECT_JA4S_HASH_H__ */

@@ -713,6 +713,11 @@ static inline int TLSDecodeHSHelloVersion(SSLState *ssl_state,
         SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, version);
     }
 
+    if (ssl_state->curr_connp->ja4 != NULL &&
+            ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
+        SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, version);
+    }
+
     /* TLSv1.3 draft1 to draft21 use the version field as earlier TLS
        versions, instead of using the supported versions extension. */
     if ((ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) &&
@@ -884,6 +889,11 @@ static inline int TLSDecodeHSHelloCipherSuites(SSLState *ssl_state,
             if (TLSDecodeValueIsGREASE(cipher_suite) != 1) {
                 if (ssl_state->curr_connp->ja4 != NULL &&
                         ssl_state->current_flags & SSL_AL_FLAG_STATE_CLIENT_HELLO) {
+                    SCJA4AddCipher(ssl_state->curr_connp->ja4, cipher_suite);
+                }
+                if (ssl_state->curr_connp->ja4 != NULL &&
+                        ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
+                    // TODO: add cipher
                     SCJA4AddCipher(ssl_state->curr_connp->ja4, cipher_suite);
                 }
                 if (enable_ja3) {
@@ -1063,6 +1073,10 @@ static inline int TLSDecodeHSHelloExtensionSupportedVersions(SSLState *ssl_state
                 ssl_state->curr_connp->version = ver;
                 if (ssl_state->curr_connp->ja4 != NULL &&
                         ssl_state->current_flags & SSL_AL_FLAG_STATE_CLIENT_HELLO) {
+                    SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, ver);
+                }
+                if (ssl_state->curr_connp->ja4 != NULL &&
+                        ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
                     SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, ver);
                 }
                 break;
@@ -1249,6 +1263,8 @@ static inline int TLSDecodeHSHelloExtensionSigAlgorithms(
         input += sigalgo_len;
     }
 
+    // NOTE: ja4s does not need sigalgo for ja4s_c
+
     return (int)(input - initial_input);
 
 invalid_length:
@@ -1313,6 +1329,14 @@ static inline int TLSDecodeHSHelloExtensionALPN(
                 SCJA4SetALPN(ssl_state->curr_connp->ja4, (const char *)input, protolen);
             }
         }
+
+        if (ssl_state->curr_connp->ja4 != NULL &&
+                ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
+            if (alpn_processed_len == 1) {
+                SCJA4SetALPN(ssl_state->curr_connp->ja4, (const char *)input, protolen);
+            }
+        }
+
         StoreALPN(ssl_state->curr_connp, input, protolen);
 
         alpn_processed_len += protolen;
@@ -1511,6 +1535,13 @@ static inline int TLSDecodeHSHelloExtensions(SSLState *ssl_state,
             }
         }
 
+        if (ssl_state->curr_connp->ja4 != NULL &&
+                ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
+            // TODO: add Extrension
+            SCJA4AddExtension(ssl_state->curr_connp->ja4, ext_type);
+
+        }
+
         processed_len += ext_len + 4;
     }
 
@@ -1565,6 +1596,13 @@ static int TLSDecodeHandshakeHello(SSLState *ssl_state,
     if (SC_ATOMIC_GET(ssl_config.enable_ja4) &&
             ssl_state->current_flags & SSL_AL_FLAG_STATE_CLIENT_HELLO &&
             ssl_state->curr_connp->ja4 == NULL) {
+        ssl_state->curr_connp->ja4 = SCJA4New();
+    }
+
+    if (SC_ATOMIC_GET(ssl_config.enable_ja4) &&
+            ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO &&
+            ssl_state->curr_connp->ja4 == NULL) {
+        
         ssl_state->curr_connp->ja4 = SCJA4New();
     }
 
@@ -2905,6 +2943,8 @@ static void SSLStateFree(void *p)
 
     if (ssl_state->client_connp.ja4)
         SCJA4Free(ssl_state->client_connp.ja4);
+    if (ssl_state->server_connp.ja4)
+        SCJA4Free(ssl_state->server_connp.ja4);
     if (ssl_state->client_connp.ja3_str)
         Ja3BufferFree(&ssl_state->client_connp.ja3_str);
     if (ssl_state->client_connp.ja3_hash)

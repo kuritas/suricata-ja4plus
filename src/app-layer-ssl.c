@@ -1075,10 +1075,6 @@ static inline int TLSDecodeHSHelloExtensionSupportedVersions(SSLState *ssl_state
                         ssl_state->current_flags & SSL_AL_FLAG_STATE_CLIENT_HELLO) {
                     SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, ver);
                 }
-                if (ssl_state->curr_connp->ja4 != NULL &&
-                        ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
-                    SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, ver);
-                }
                 break;
             }
             i += 2;
@@ -1098,6 +1094,10 @@ static inline int TLSDecodeHSHelloExtensionSupportedVersions(SSLState *ssl_state
         if ((ssl_state->flags & SSL_AL_FLAG_CH_VERSION_EXTENSION) &&
                 (ver > TLS_VERSION_12)) {
             ssl_state->flags |= SSL_AL_FLAG_LOG_WITHOUT_CERT;
+        }
+        if (ssl_state->curr_connp->ja4 != NULL &&
+                ssl_state->current_flags & SSL_AL_FLAG_STATE_SERVER_HELLO) {
+            SCJA4SetTLSVersion(ssl_state->curr_connp->ja4, ver);
         }
 
         ssl_state->curr_connp->version = ver;

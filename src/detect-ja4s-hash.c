@@ -144,7 +144,7 @@ static InspectionBuffer *GetData(DetectEngineThreadCtx *det_ctx,
         }
 
         uint8_t data[JA4S_HEX_LEN];
-        //SCJA4SGetHash(ssl_state->server_connp.ja4, (uint8_t(*)[JA4S_HEX_LEN])data);
+        SCJA4SGetHash(ssl_state->server_connp.ja4, (uint8_t(*)[JA4S_HEX_LEN])data);
 
         InspectionBufferSetup(det_ctx, list_id, buffer, data, 0);
         InspectionBufferCopy(buffer, data, JA4S_HEX_LEN);

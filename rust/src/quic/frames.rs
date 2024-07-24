@@ -350,8 +350,11 @@ fn parse_quic_handshake(msg: TlsMessage) -> Option<Frame> {
                 ja3.push(',');
                 ja3.push_str(&u16::from(sh.cipher).to_string());
                 ja3.push(',');
+                let mut ja4 = JA4::new();
+                ja4.set_quic();
                 let ciphers = vec![sh.cipher];
-                let extv = quic_get_tls_extensions(sh.ext, &mut ja3, None, false);
+                ja4.add_cipher_suite(sh.cipher);
+                let extv = quic_get_tls_extensions(sh.ext, &mut ja3, Some(&mut ja4), false);
                 return Some(Frame::Crypto(Crypto {
                     ciphers,
                     extv,
@@ -360,7 +363,11 @@ fn parse_quic_handshake(msg: TlsMessage) -> Option<Frame> {
                     } else {
                         None
                     },
-                    ja4: None,
+                    ja4: if cfg!(feature = "ja4") {
+                        Some(ja4)
+                    } else {
+                        None
+                    },
                 }));
             }
             _ => {}

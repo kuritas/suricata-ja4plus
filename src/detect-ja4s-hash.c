@@ -77,16 +77,16 @@ void DetectJa4SHashRegister(void)
     sigmatch_table[DETECT_AL_JA4S_HASH].flags |= SIGMATCH_INFO_STICKY_BUFFER;
 
 #ifdef HAVE_JA4
-    DetectAppLayerInspectEngineRegister("ja4s.hash", ALPROTO_TLS, SIG_FLAG_TOSERVER, 0,
+    DetectAppLayerInspectEngineRegister("ja4s.hash", ALPROTO_TLS, SIG_FLAG_TOCLIENT, 0,
             DetectEngineInspectBufferGeneric, GetData);
 
     DetectAppLayerMpmRegister(
-            "ja4s.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister, GetData, ALPROTO_TLS, 0);
+            "ja4s.hash", SIG_FLAG_TOCLIENT, 2, PrefilterGenericMpmRegister, GetData, ALPROTO_TLS, 0);
 
-    DetectAppLayerMpmRegister("ja4s.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister,
+    DetectAppLayerMpmRegister("ja4s.hash", SIG_FLAG_TOCLIENT, 2, PrefilterGenericMpmRegister,
             Ja4SDetectGetHash, ALPROTO_QUIC, 1);
 
-    DetectAppLayerInspectEngineRegister("ja4s.hash", ALPROTO_QUIC, SIG_FLAG_TOSERVER, 1,
+    DetectAppLayerInspectEngineRegister("ja4s.hash", ALPROTO_QUIC, SIG_FLAG_TOCLIENT, 1,
             DetectEngineInspectBufferGeneric, Ja4SDetectGetHash);
 
     DetectBufferTypeSetDescriptionByName("ja4s.hash", "TLS JA4S hash");

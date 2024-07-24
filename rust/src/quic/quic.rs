@@ -260,7 +260,6 @@ impl QuicState {
                         }
                     } else {
                         if let Some(ref rja4s) = c.ja4 {
-                            SCLogNotice!("ja4s: {:?}", rja4s);
                             ja4s = Some(rja4s.get_hash_s());
                         }
                     }

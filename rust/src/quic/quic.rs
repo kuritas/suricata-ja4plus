@@ -245,12 +245,16 @@ impl QuicState {
                     if let Some(ja3str) = &c.ja3 {
                         ja3 = Some(ja3str.clone());
                     }
-                    // we only do client fingerprints for now
+                    // we do both client&server fingerprints for now
                     if to_server {
                         // our hash is complete, let's only use strings from
                         // now on
                         if let Some(ref rja4) = c.ja4 {
                             ja4 = Some(rja4.get_hash());
+                        }
+                    } else {
+                        if let Some(ref rja4s) = c.ja4 {
+                            ja4 = Some(rja4s.get_hash_s());
                         }
                     }
                     for e in &c.extv {

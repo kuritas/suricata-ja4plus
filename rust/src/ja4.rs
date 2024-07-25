@@ -75,6 +75,9 @@ impl JA4 {
     pub fn get_hash(&self) -> String {
         String::new()
     }
+    pub fn get_hash_s(&self) -> String {
+        String::new()
+    }
 }
 
 #[cfg(feature = "ja4")]
@@ -225,6 +228,37 @@ impl JA4 {
 
         return format!("{}_{}_{}", ja4_a, ja4_b, ja4_c);
     }
+
+    /// calculate the JA4S hash (note that ja4s follows different rules than ja4)
+    pub fn get_hash_s(&self) -> String {
+        // Calculate JA4_a
+        let ja4s_a = format!(
+            "{proto}{version}{nof_e:02}{al1}{al2}",
+            proto = if self.quic { "q" } else { "t" },
+            version = JA4::version_to_ja4code(self.tls_version),
+            nof_e = min(99, self.nof_exts),
+            al1 = self.alpn[0],
+            al2 = self.alpn[1]
+        );
+
+        // Calculate JA4_b
+        let ja4s_b = format!("{:04x}", u16::from(*self.ciphersuites[0]));
+
+        // Calculate JA4_c
+        let exts = self.extensions.to_vec();
+        // sorted_exts.sort_by(|a, b| u16::from(*a).cmp(&u16::from(*b)));
+        let extstrings: Vec<String> = exts
+            .iter()
+            .map(|v| format!("{:04x}", u16::from(*v)))
+            .collect();
+        let ja4s_c_raw = extstrings.join(",");
+        let mut sha = Sha256::new();
+        sha.update(&ja4s_c_raw);
+        let mut ja4s_c = format!("{:x}", sha.finalize());
+        ja4s_c.truncate(12);
+
+        return format!("{}_{}_{}", ja4s_a, ja4s_b, ja4s_c);
+    }
 }
 
 #[no_mangle]
@@ -263,6 +297,12 @@ pub unsafe extern "C" fn SCJA4SetALPN(j: &mut JA4, proto: *const c_char, len: u1
 pub unsafe extern "C" fn SCJA4GetHash(j: &mut JA4, out: &mut [u8; 36]) {
     let hash = j.get_hash();
     out[0..36].copy_from_slice(hash.as_bytes());
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn SCJA4SGetHash(j: &mut JA4, out: &mut [u8; 25]) {
+    let hash = j.get_hash_s();
+    out[0..25].copy_from_slice(hash.as_bytes());
 }
 
 #[no_mangle]

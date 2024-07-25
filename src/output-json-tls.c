@@ -76,6 +76,7 @@ SC_ATOMIC_EXTERN(unsigned int, cert_id);
 #define LOG_TLS_FIELD_CLIENT_CHAIN      (1 << 15)
 #define LOG_TLS_FIELD_JA4               (1 << 16)
 #define LOG_TLS_FIELD_SUBJECTALTNAME    (1 << 17)
+#define LOG_TLS_FIELD_JA4S              (1 << 18)
 
 typedef struct {
     const char *name;
@@ -91,7 +92,8 @@ TlsFields tls_fields[] = { { "version", LOG_TLS_FIELD_VERSION },
     { "ja3", LOG_TLS_FIELD_JA3 }, { "ja3s", LOG_TLS_FIELD_JA3S },
     { "client", LOG_TLS_FIELD_CLIENT }, { "client_certificate", LOG_TLS_FIELD_CLIENT_CERT },
     { "client_chain", LOG_TLS_FIELD_CLIENT_CHAIN }, { "ja4", LOG_TLS_FIELD_JA4 },
-    { "subjectaltname", LOG_TLS_FIELD_SUBJECTALTNAME }, { NULL, -1 } };
+    { "subjectaltname", LOG_TLS_FIELD_SUBJECTALTNAME }, { "ja4s", LOG_TLS_FIELD_JA4S }, 
+    { NULL, -1 } };
 
 typedef struct OutputTlsCtx_ {
     uint32_t flags;  /** Store mode */
@@ -229,6 +231,15 @@ static void JsonTlsLogSCJA4(JsonBuilder *js, SSLState *ssl_state)
         /* JA4 hash has 36 characters */
         SCJA4GetHash(ssl_state->client_connp.ja4, (uint8_t(*)[JA4_HEX_LEN])buffer);
         jb_set_string_from_bytes(js, "ja4", buffer, 36);
+    }
+}
+
+static void JsonTlsLogSCJA4S(JsonBuilder *js, SSLState *ssl_state)
+{
+    if (ssl_state->server_connp.ja4 != NULL) {
+        uint8_t buffer[JA4S_HEX_LEN];
+        SCJA4SGetHash(ssl_state->server_connp.ja4, (uint8_t(*)[JA4S_HEX_LEN])buffer);
+        jb_set_string_from_bytes(js, "ja4s", buffer, JA4S_HEX_LEN);
     }
 }
 
@@ -432,6 +443,10 @@ static void JsonTlsLogJSONCustom(OutputTlsCtx *tls_ctx, JsonBuilder *js,
     if (tls_ctx->fields & LOG_TLS_FIELD_JA4)
         JsonTlsLogSCJA4(js, ssl_state);
 
+    /* tls ja4s */
+    if (tls_ctx->fields & LOG_TLS_FIELD_JA4S)
+        JsonTlsLogSCJA4S(js, ssl_state);
+
     if (tls_ctx->fields & LOG_TLS_FIELD_CLIENT) {
         const bool log_cert = (tls_ctx->fields & LOG_TLS_FIELD_CLIENT_CERT) != 0;
         const bool log_chain = (tls_ctx->fields & LOG_TLS_FIELD_CLIENT_CHAIN) != 0;
@@ -474,6 +489,9 @@ static bool JsonTlsLogJSONExtendedAux(void *vtx, JsonBuilder *tjs)
 
     /* tls ja4 */
     JsonTlsLogSCJA4(tjs, state);
+
+    /* tls ja4s */
+    JsonTlsLogSCJA4S(tjs, state);
 
     JsonTlsLogAlpns(tjs, &state->client_connp, "client_alpns");
     JsonTlsLogAlpns(tjs, &state->server_connp, "server_alpns");

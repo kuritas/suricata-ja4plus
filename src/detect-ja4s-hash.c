@@ -34,17 +34,12 @@
 #include "detect-engine-prefilter.h"
 #include "detect-ja4s-hash.h"
 
+#include "detect-engine-helper.h"
+
 #include "util-ja4.h"
+#include "util-mem.h"
 
 #include "app-layer-ssl.h"
-
-#ifndef HAVE_JA4
-static int DetectJA4SSetupNoSupport(DetectEngineCtx *a, Signature *b, const char *c)
-{
-    SCLogError("no JA4 support built in");
-    return -1;
-}
-#endif /* HAVE_JA4 */
 
 #ifdef HAVE_JA4
 static int DetectJa4SHashSetup(DetectEngineCtx *, Signature *, const char *);
@@ -57,6 +52,7 @@ static InspectionBuffer *Ja4SDetectGetHash(DetectEngineThreadCtx *det_ctx,
         const int list_id);
 
 static int g_ja4s_hash_buffer_id = 0;
+static int g_ja4s_hash_keyword_id = 0;
 #endif
 
 /**
@@ -64,32 +60,18 @@ static int g_ja4s_hash_buffer_id = 0;
  */
 void DetectJa4SHashRegister(void)
 {
-    sigmatch_table[DETECT_AL_JA4S_HASH].name = "ja4s.hash";
-    sigmatch_table[DETECT_AL_JA4S_HASH].alias = "ja4s_hash";
-    sigmatch_table[DETECT_AL_JA4S_HASH].desc = "sticky buffer to match the JA4S hash buffer";
-    sigmatch_table[DETECT_AL_JA4S_HASH].url = "/rules/ja4-keywords.html#ja4s-hash";
 #ifdef HAVE_JA4
-    sigmatch_table[DETECT_AL_JA4S_HASH].Setup = DetectJa4SHashSetup;
-#else  /* HAVE_JA4 */
-    sigmatch_table[DETECT_AL_JA4S_HASH].Setup = DetectJA4SSetupNoSupport;
-#endif /* HAVE_JA4 */
-    sigmatch_table[DETECT_AL_JA4S_HASH].flags |= SIGMATCH_NOOPT;
-    sigmatch_table[DETECT_AL_JA4S_HASH].flags |= SIGMATCH_INFO_STICKY_BUFFER;
+    SCSigTableElmt *kw = (SCSigTableElmt *)SCCalloc(1, sizeof(SCSigTableElmt));
+    kw->name = "ja4s.hash";
+    kw->desc = "sticky buffer to match the JA4S hash buffer";
+    kw->Setup = (int (*)(void *, void *, const char *))DetectJa4SHashSetup;
+    kw->flags |= SIGMATCH_NOOPT;
+    kw->flags |= SIGMATCH_INFO_STICKY_BUFFER;
+    g_ja4s_hash_keyword_id = DetectHelperKeywordRegister(kw);
+    SCFree(kw);
 
-#ifdef HAVE_JA4
-    DetectAppLayerInspectEngineRegister("ja4s.hash", ALPROTO_TLS, SIG_FLAG_TOCLIENT, 0,
-            DetectEngineInspectBufferGeneric, GetData);
-
-    DetectAppLayerMpmRegister(
-            "ja4s.hash", SIG_FLAG_TOCLIENT, 2, PrefilterGenericMpmRegister, GetData, ALPROTO_TLS, 0);
-
-    DetectAppLayerMpmRegister("ja4s.hash", SIG_FLAG_TOCLIENT, 2, PrefilterGenericMpmRegister,
-            Ja4SDetectGetHash, ALPROTO_QUIC, 1);
-
-    DetectAppLayerInspectEngineRegister("ja4s.hash", ALPROTO_QUIC, SIG_FLAG_TOCLIENT, 1,
-            DetectEngineInspectBufferGeneric, Ja4SDetectGetHash);
-
-    DetectBufferTypeSetDescriptionByName("ja4s.hash", "TLS JA4S hash");
+    DetectHelperBufferMpmRegister("ja4s.hash", "TLS JA4S hash", ALPROTO_TLS, 1, 0, GetData);
+    DetectHelperBufferMpmRegister("ja4s.hash", "TLS JA4S hash", ALPROTO_QUIC, 1, 0, Ja4SDetectGetHash);
 
     g_ja4s_hash_buffer_id = DetectBufferTypeGetByName("ja4s.hash");
 #endif /* HAVE_JA4 */
@@ -121,7 +103,7 @@ static int DetectJa4SHashSetup(DetectEngineCtx *de_ctx, Signature *s, const char
 
     /* check if JA4 enabling had an effect */
     if (!RunmodeIsUnittests() && !SSLJA4IsEnabled()) {
-        if (!SigMatchSilentErrorEnabled(de_ctx, DETECT_AL_JA4S_HASH)) {
+        if (!SigMatchSilentErrorEnabled(de_ctx, g_ja4s_hash_keyword_id)) {
             SCLogError("JA4 support is not enabled");
         }
         return -2;

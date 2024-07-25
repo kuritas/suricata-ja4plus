@@ -331,7 +331,6 @@ enum DetectKeywordId {
     DETECT_AL_IKE_KEY_EXCHANGE,
 
     DETECT_AL_JA4_HASH,
-    DETECT_AL_JA4S_HASH,
 
     /* make sure this stays last */
     DETECT_TBLSIZE_STATIC,
